@@ -165,61 +165,90 @@ func (m *httpHandler) wholeSalerRegister(body []byte, w http.ResponseWriter) {
 	return
 }
 
-func (m *httpHandler) userLogin(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		zap.L().Info(fmt.Sprintf("get method not support, method:%s", r.Method))
-		statObj.statHandler.StatCount(StatInvalidMethodReq)
+func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
+	var req userLoginReq
+	err := json.Unmarshal(body, &req)
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
 		m.ivalidResp(w)
 		return
 	}
-	body, err := ioutil.ReadAll(r.Body)
+	errMsg, openId, _, err := m.getWxUserInfo(req.Data.SpId, req.Data.WxCode)
 	if err != nil {
-		statObj.statHandler.StatCount(StatReadBody)
+		zap.L().Error(fmt.Sprintf("userLogin error %s", err.Error()))
 		m.ivalidResp(w)
 		return
-	} else {
-		zap.L().Debug(fmt.Sprintf("recv body len:%d content:%s", len(body), body))
-		var req userLoginReq
-		err := json.Unmarshal(body, &req)
+	} else if errMsg != "" {
+		var respHead ResponseHead
+		respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 9999, ErrorMsg: errMsg, Cmd: req.RequestHead.Cmd}
+		jsonData, err := json.Marshal(respHead)
 		if err != nil {
 			zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
 			m.ivalidResp(w)
 			return
 		}
-		var resp userLoginResp
-		tUser, err := m.usersv.queryUserByPasswd(req.Passwd, req.UserName, req.UserType)
-		if err == nil {
-			if tUser == nil {
-				resp = userLoginResp{
-					RequestId: req.RequestId,
-					ErrorCode: 1,
-					ErrorMsg:  "用户" + req.UserName + "登录失败: 用户名或密码不正确",
-				}
-			} else {
-				resp = userLoginResp{
-					RequestId: req.RequestId,
-					ErrorCode: 0,
-					OpenId:    tUser.Open_id.String,
-					UserId:    tUser.User_uuid,
-					UserType:  tUser.User_type,
-					UserName:  tUser.User_name.String,
-					HeadIco:   tUser.Head_portrait.String,
-				}
-			}
-			data, err := json.Marshal(resp)
-			if err != nil {
-				zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
-				m.ivalidResp(w)
-				return
-			}
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(data))
-			return
-		}
-		zap.L().Error(fmt.Sprintf("login error %s", err.Error()))
-		m.ivalidResp(w)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(jsonData))
 		return
 	}
+	var resp userLoginResp
+	if req.UserType != 1 { //零售商登录不需要密码，其他都需要
+		tUser, err := m.usersv.queryUserByPasswd(req.Data.Passwd, req.Data.LoginName, req.UserType)
+		if err == nil {
+			if tUser == nil {
+				resp = userLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "用户" + req.Data.LoginName + "登录失败: 用户名或密码不正确", Cmd: req.Cmd}, userLoginRespData{}}
+			} else {
+				err = m.usersv.bindUser(openId, tUser.User_uuid)
+				// 处理登录
+			}
+		}
+	} else {
+
+	}
+
+	zap.L().Error(fmt.Sprintf("login error %s", err.Error()))
+	m.ivalidResp(w)
+	return
+}
+
+func (m *httpHandler) getWxUserInfo(spId string, wxCode string) (errMsg string, openId string, sessionKey string, err error) {
+	var appid string
+	var secret string
+	tWxPluginProgram, err := m.wxpluginprogramsv.queryWxpluginProgram(spId)
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("getWxUserInfo error %s", err.Error()))
+		return "", "", "", err
+	} else if tWxPluginProgram == nil {
+		return "系统未配置对应的小程序", "", "", nil
+	}
+	appid = tWxPluginProgram.Appid
+	secret = tWxPluginProgram.Appsecrete
+	resp, err := http.Get("https://api.weixin.qq.com/sns/jscode2session?appid=" + appid + "&secret=" + secret + "&js_code=" + wxCode + "&grant_type=authorization_code")
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("get wx session_key error %s", err.Error()))
+		return "", "", "", err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("get wx session_key error %s", err.Error()))
+		return "", "", "", err
+	}
+	var dat map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &dat); err == nil {
+		openid := dat["openid"]
+		session_key := dat["session_key"]
+		errcode := dat["errcode"]
+		errMsg := dat["errMsg"]
+		zap.L().Debug(fmt.Sprintf("openid:%s", openid.(string)))
+		zap.L().Debug(fmt.Sprintf("session_key:%s", session_key.(string)))
+		zap.L().Debug(fmt.Sprintf("errcode:%s", errcode.(string)))
+		zap.L().Debug(fmt.Sprintf("errMsg:%s", errMsg.(string)))
+		if errcode.(int) == 0 {
+			return "", openid.(string), session_key.(string), nil
+		}
+		return "[" + wxCode + "] code2Session失败[" + strconv.Itoa(errcode.(int)) + "]:" + errMsg.(string), "", "", nil
+	}
+	return "", "", "", err
 }
 
 func (m *httpHandler) queryUser(body []byte, w http.ResponseWriter) {
@@ -230,16 +259,14 @@ func (m *httpHandler) queryUser(body []byte, w http.ResponseWriter) {
 		m.ivalidResp(w)
 		return
 	}
-	var appid string
-	var secret string
-	tWxPluginProgram, err := m.wxpluginprogramsv.queryWxpluginProgram(req.Data.SpId)
+	errMsg, openid, _, err := m.getWxUserInfo(req.Data.SpId, req.Data.WxCode)
 	if err != nil {
-		zap.L().Error(fmt.Sprintf("get tWxPluginProgram error %s", err.Error()))
+		zap.L().Error(fmt.Sprintf("queryUser error %s", err.Error()))
 		m.ivalidResp(w)
 		return
-	} else if tWxPluginProgram == nil {
+	} else if errMsg != "" {
 		var respHead ResponseHead
-		respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 9999, ErrorMsg: "系统未配置对应的小程序", Cmd: req.RequestHead.Cmd}
+		respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 9999, ErrorMsg: errMsg, Cmd: req.RequestHead.Cmd}
 		jsonData, err := json.Marshal(respHead)
 		if err != nil {
 			zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
@@ -249,48 +276,28 @@ func (m *httpHandler) queryUser(body []byte, w http.ResponseWriter) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(jsonData))
 		return
-	} else {
-		appid = tWxPluginProgram.Appid
-		secret = tWxPluginProgram.Appsecrete
 	}
-	resp, err := http.Get("https://api.weixin.qq.com/sns/jscode2session?appid=" + appid + "&secret=" + secret + "&js_code=" + req.Data.WxCode + "&grant_type=authorization_code")
-	if err != nil {
-		zap.L().Error(fmt.Sprintf("get wx session_key error %s", err.Error()))
-		m.ivalidResp(w)
-		return
-	}
-	body, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		zap.L().Error(fmt.Sprintf("get wx session_key error %s", err.Error()))
-		m.ivalidResp(w)
-		return
-	}
-	var dat map[string]interface{}
-	if err := json.Unmarshal([]byte(body), &dat); err == nil {
-		openid := dat["openid"]
-		session_key := dat["session_key"]
-		zap.L().Debug(fmt.Sprintf("openid:%s", openid.(string)))
-		zap.L().Debug(fmt.Sprintf("session_key:%s", session_key.(string)))
-		tUser, err := m.usersv.queryUserByOpenId(openid.(string))
-		if err == nil {
-			if tUser != nil {
-				var respHead ResponseHead
-				respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 0, Cmd: req.RequestHead.Cmd}
-				var data QueryUserRespData
-				data = QueryUserRespData{OpenId: tUser.Open_id.String, UserId: tUser.User_uuid, UserType: tUser.User_type, UserName: tUser.User_name.String, HeadIco: tUser.Head_portrait.String}
-				var resp QueryUserResp
-				resp = QueryUserResp{ResponseHead: respHead, Data: data}
-				jsonData, err := json.Marshal(resp)
-				if err != nil {
-					zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
-					m.ivalidResp(w)
-					return
-				}
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(jsonData))
-				return
-			}
+	tUser, err := m.usersv.queryUserByOpenId(openid)
+	var resp QueryUserResp
+	if err == nil {
+		if tUser != nil {
+			var respHead ResponseHead
+			respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 0, Cmd: req.RequestHead.Cmd}
+			var data QueryUserRespData
+			data = QueryUserRespData{OpenId: tUser.Open_id.String, UserId: tUser.User_uuid, UserType: tUser.User_type, UserName: tUser.User_name.String, HeadIco: tUser.Head_portrait.String}
+			resp = QueryUserResp{ResponseHead: respHead, Data: data}
+		} else {
+			resp = QueryUserResp{ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 1, Cmd: req.RequestHead.Cmd, ErrorMsg: "未查到对应的用户"}, QueryUserRespData{}}
 		}
+		jsonData, err := json.Marshal(resp)
+		if err != nil {
+			zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
+			m.ivalidResp(w)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(jsonData))
+		return
 	}
 	zap.L().Error(fmt.Sprintf("queryUser error %s", err.Error()))
 	m.ivalidResp(w)

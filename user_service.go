@@ -77,11 +77,32 @@ func (m *user_service) queryUserByOpenId(openId string) (*tUser, error) {
 	return queryRep.Rows[0].(*tUser), nil
 }
 
-func (m *user_service) createRetailer(openId string, userType int32) (*tUser, error) {
+func (m *user_service) bindUser(openId string, user_uuid string) error {
 	args1 := []interface{}{}
-	uid, _ := uuid.NewV4()
 	args1 = append(args1, openId)
-	args1 = append(args1, uid)
-	args1 = append(args1, userType)
-	return nil, nil
+	args1 = append(args1, user_uuid)
+	args1 = append(args1, user_uuid)
+	execReq1 := SqlExecRequest{
+		SQL:  "update t_user set open_id = ?, update_user = ? , update_time = now  where user_uuid = ?",
+		Args: args1,
+	}
+	reply := m.d.dbCli.Query(execReq1)
+	execRep, _ := reply.(*SqlExecReply)
+	if execRep.Err != nil {
+		zap.L().Error(fmt.Sprintf("bindUser user[%s,%s] error:%s", openId, user_uuid, execRep.Err.Error()))
+		return execRep.Err
+	}
+	return nil
+}
+
+func (m *user_service) addRetailer(openId string) error {
+	uid, _ := uuid.NewV4()
+	args2 := []interface{}{}
+	args2 = append(args2, uid.String())
+	args2 = append(args2, openId)
+	execReq2 := SqlExecRequest{
+		SQL:  "insert into t_user(user_uuid, user_name, passwd, agent_uuid, user_type, user_status, create_time, create_user, update_time, update_user) values(?,?,?,?,1,1,now(),?,now(),?)",
+		Args: args2,
+	}
+	return nil
 }

@@ -41,21 +41,28 @@ type wholeSalerRegisterResp struct {
 }
 
 type userLoginReq struct {
-	RequestId string `json:"requestId"`
+	RequestHead
+	Data userLoginReqData `json:"data"`
+}
+
+type userLoginReqData struct {
 	Passwd    string `json:"passwd"`
-	UserType  int32  `json:"userType"`
-	UserName  string `json:"userName"`
+	SpId      string `json:"spId"`
+	WxCode    string `json:"wxCode"`
+	LoginName string `json:"loginName"`
 }
 
 type userLoginResp struct {
-	RequestId string `json:"requestId"`
-	ErrorCode int32  `json:"errorCode"`
-	ErrorMsg  string `json:"errorMsg"`
-	OpenId    string `json:"openId"`
-	UserId    string `json:"userId"`
-	UserType  int32  `json:"userType"`
-	UserName  string `json:"userName"`
-	HeadIco   string `json:"headIco"`
+	ResponseHead
+	Data userLoginRespData `json:"data"`
+}
+
+type userLoginRespData struct {
+	OpenId   string `json:"openId"`
+	UserId   string `json:"userId"`
+	UserType int32  `json:"userType"`
+	UserName string `json:"userName"`
+	HeadIco  string `json:"headIco"`
 }
 
 type QueryUserReqData struct {
