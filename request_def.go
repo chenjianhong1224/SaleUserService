@@ -14,26 +14,30 @@ type ResponseHead struct {
 	Cmd       int32  `json:"cmd"`
 }
 
-type wholeSalerRegisterReq struct {
-	RequestId string `json:"requestId"`
-	OpenId    string `json:"openId"`
-	UserId    string `json:"userId"`
-	UserType  int32  `json:"userType"`
+type wholeSalerRegisterReqData struct {
 	WsName    string `json:"wsName"`
 	WsCompany string `json:"wsCompany"`
 	WsMobile  string `json:"wsMobile"`
 }
 
-type wholeSalerRegisterResp struct {
-	RequestId      string `json:"requestId"`
-	ErrorCode      int32  `json:"errorCode"`
-	ErrorMsg       string `json:"errorMsg"`
+type wholeSalerRegisterReq struct {
+	RequestHead
+	OpenId string                    `json:"openId"`
+	UserId string                    `json:"userId"`
+	Data   wholeSalerRegisterReqData `json:"data"`
+}
+
+type wholeSalerRegisterRespData struct {
 	WsId           string `json:"wsId"`
-	UserType       int32  `json:"userType"`
 	WsName         string `json:"wsName"`
 	WsCompany      string `json:"wsCompany"`
 	WsMobile       string `json:"wsMobile"`
 	WsIdentityCode string `json:"wsIdentityCode"`
+}
+
+type wholeSalerRegisterResp struct {
+	ResponseHead
+	Data wholeSalerRegisterRespData `json:"data"`
 }
 
 type userLoginReq struct {
@@ -60,8 +64,8 @@ type QueryUserReqData struct {
 }
 
 type QueryUserReq struct {
-	RequestHead RequestHead
-	Data        QueryUserReqData `json:"data"`
+	RequestHead
+	Data QueryUserReqData `json:"data"`
 }
 
 type QueryUserRespData struct {

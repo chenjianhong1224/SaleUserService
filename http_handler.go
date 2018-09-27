@@ -113,97 +113,56 @@ func (m *httpHandler) process(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (m *httpHandler) wholeSalerRegister(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		zap.L().Info(fmt.Sprintf("get method not support, method:%s", r.Method))
-		statObj.statHandler.StatCount(StatInvalidMethodReq)
+func (m *httpHandler) wholeSalerRegister(body []byte, w http.ResponseWriter) {
+
+	var req wholeSalerRegisterReq
+	err := json.Unmarshal(body, &req)
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
 		m.ivalidResp(w)
 		return
 	}
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		statObj.statHandler.StatCount(StatReadBody)
-		m.ivalidResp(w)
-		return
-	} else {
-		zap.L().Debug(fmt.Sprintf("recv body len:%d content:%s", len(body), body))
-		var req wholeSalerRegisterReq
-		err := json.Unmarshal(body, &req)
-		if err != nil {
-			zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
-			m.ivalidResp(w)
-			return
-		}
-		var resp wholeSalerRegisterResp
-		tUser, err := m.usersv.queryUser(req.OpenId, req.UserId)
-		if err == nil {
-			if tUser == nil {
-				resp = wholeSalerRegisterResp{
-					RequestId: req.RequestId,
-					ErrorCode: 1,
-					ErrorMsg:  "查不到对应的销售员userId=" + req.UserId + ",OpenId=" + req.OpenId,
-				}
+	var resp wholeSalerRegisterResp
+	tUser, err := m.usersv.queryUser(req.OpenId, req.UserId)
+	if err == nil {
+		if tUser == nil {
+			resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "查不到对应的销售员userId=" + req.UserId + ",OpenId=" + req.OpenId, Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
+		} else {
+			if tUser.User_type != 2 || tUser.User_status != 1 {
+				resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "该销售员不存在或不是合法状态", Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
 			} else {
-				if tUser.User_type != 2 || tUser.User_status != 1 {
-					resp = wholeSalerRegisterResp{
-						RequestId: req.RequestId,
-						ErrorCode: 1,
-						ErrorMsg:  "该销售员不存在或不是合法状态",
-					}
-				} else {
-					tWholeSaler, err := m.wholesalersv.queryWholesaler(req.WsMobile, req.WsCompany)
-					if err == nil {
-						if tWholeSaler != nil {
-							resp = wholeSalerRegisterResp{
-								RequestId: req.RequestId,
-								ErrorCode: 1,
-								ErrorMsg:  "该批发商已经注册",
-							}
+				tWholeSaler, err := m.wholesalersv.queryWholesaler(req.Data.WsMobile, req.Data.WsCompany)
+				if err == nil {
+					if tWholeSaler != nil {
+						resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "该批发商已经注册", Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
+					} else {
+						if req.Data.WsMobile == "" {
+							resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商手机号不能为空", Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
 						} else {
-							if req.WsMobile == "" {
-								resp = wholeSalerRegisterResp{
-									RequestId: req.RequestId,
-									ErrorCode: 1,
-									ErrorMsg:  "新增批发商手机号不能为空",
-								}
+							wholesalerId, passwd, err := m.wholesalersv.addWholesaler(req)
+							if err == nil {
+								resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: req.Cmd}, wholeSalerRegisterRespData{WsId: strconv.FormatInt(wholesalerId, 10), WsName: req.Data.WsName, WsCompany: req.Data.WsCompany, WsMobile: req.Data.WsMobile, WsIdentityCode: passwd}}
 							} else {
-								wholesalerId, passwd, err := m.wholesalersv.addWholesaler(req)
-								if err == nil {
-									resp = wholeSalerRegisterResp{
-										RequestId:      req.RequestId,
-										ErrorCode:      0,
-										WsId:           strconv.FormatInt(wholesalerId, 10),
-										UserType:       1,
-										WsName:         req.WsName,
-										WsCompany:      req.WsCompany,
-										WsMobile:       req.WsMobile,
-										WsIdentityCode: passwd,
-									}
-								} else {
-									resp = wholeSalerRegisterResp{
-										RequestId: req.RequestId,
-										ErrorCode: 1,
-										ErrorMsg:  "新增批发商失败:" + err.Error()}
-								}
+								resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商失败:" + err.Error(), Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
 							}
 						}
 					}
 				}
 			}
-			data, err := json.Marshal(resp)
-			if err != nil {
-				zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
-				m.ivalidResp(w)
-				return
-			}
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(data))
+		}
+		data, err := json.Marshal(resp)
+		if err != nil {
+			zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
+			m.ivalidResp(w)
 			return
 		}
-		zap.L().Error(fmt.Sprintf("get saler_user error %s", err.Error()))
-		m.ivalidResp(w)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(data))
 		return
 	}
+	zap.L().Error(fmt.Sprintf("get saler_user error %s", err.Error()))
+	m.ivalidResp(w)
+	return
 }
 
 func (m *httpHandler) userLogin(w http.ResponseWriter, r *http.Request) {
@@ -279,8 +238,16 @@ func (m *httpHandler) queryUser(body []byte, w http.ResponseWriter) {
 		m.ivalidResp(w)
 		return
 	} else if tWxPluginProgram == nil {
-		zap.L().Error("系统未配置对应的小程序")
-		m.ivalidResp(w)
+		var respHead ResponseHead
+		respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 9999, ErrorMsg: "系统未配置对应的小程序", Cmd: req.RequestHead.Cmd}
+		jsonData, err := json.Marshal(respHead)
+		if err != nil {
+			zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
+			m.ivalidResp(w)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(jsonData))
 		return
 	} else {
 		appid = tWxPluginProgram.Appid
