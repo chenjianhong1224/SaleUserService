@@ -26,44 +26,41 @@ func (m *wholesaler_service) makepw(pwl int) string {
 	return res
 }
 
-//func (m *wholesaler_service) addWholesaler(req wholeSalerRegisterReq) (int64, string, error) {
-//	passwd := m.makepw(8)
-//	args2 := []interface{}{}
-//	uid, _ := uuid.NewV4()
-//	args2 = append(args2, uid.String())
-//	args2 = append(args2, req.WsName)
-//	data := []byte(passwd)
-//	has := md5.Sum(data)
-//	args2 = append(args2, fmt.Sprintf("%x", has))
-//	args2 = append(args2, uid.String())
-//	args2 = append(args2, req.UserId)
-//	args2 = append(args2, req.UserId)
-//	execReq2 := SqlExecRequest{
-//		SQL:  "insert into t_user(user_uuid, user_name, passwd, agent_uuid, user_type, user_status, create_time, create_user, update_time, update_user) values(?,?,?,?,1,1,now(),?,now(),?)",
-//		Args: args2,
-//	}
-//	args1 := []interface{}{}
-//	args1 = append(args1, uid.String())
-//	args1 = append(args1, req.WsMobile)
-//	args1 = append(args1, req.WsCompany)
-//	args1 = append(args1, req.WsMobile)
-//	args1 = append(args1, req.UserId)
-//	args1 = append(args1, req.UserId)
-//	execReq1 := SqlExecRequest{
-//		SQL:  "insert into t_wholesaler(saler_uuid, saler_name, company, mobile, saler_status, create_time, create_user, update_time, update_user) values(?,?,?,?,1,now(),?,now(),?)",
-//		Args: args1,
-//	}
-//	var execReqList = []SqlExecRequest{execReq1, execReq2}
-//	err := m.d.dbCli.TransationExcute(execReqList)
-//	if err == nil {
-//		tWholeSaler, err := m.queryWholesaler(req.WsMobile, req.WsCompany)
-//		if err == nil {
-//			return tWholeSaler.Saler_id, passwd, nil
-//		}
-//	}
-//	zap.L().Error(fmt.Sprintf("add wholesaler[%s,%s] error:%s", req.WsCompany, req.WsMobile, err.Error()))
-//	return -1, "", err
-//}
+func (m *wholesaler_service) addWholesaler(req wholeSalerRegisterReq) (string, string, error) {
+	passwd := m.makepw(8)
+	args2 := []interface{}{}
+	uid, _ := uuid.NewV4()
+	args2 = append(args2, uid.String())
+	args2 = append(args2, req.Data.WsName)
+	data := []byte(passwd)
+	has := md5.Sum(data)
+	args2 = append(args2, fmt.Sprintf("%x", has))
+	args2 = append(args2, uid.String())
+	args2 = append(args2, req.UserId)
+	args2 = append(args2, req.UserId)
+	execReq2 := SqlExecRequest{
+		SQL:  "insert into t_user(user_uuid, user_name, passwd, agent_uuid, user_type, user_status, create_time, create_user, update_time, update_user) values(?,?,?,?,1,1,now(),?,now(),?)",
+		Args: args2,
+	}
+	args1 := []interface{}{}
+	args1 = append(args1, uid.String())
+	args1 = append(args1, req.Data.WsMobile)
+	args1 = append(args1, req.Data.WsCompany)
+	args1 = append(args1, req.Data.WsMobile)
+	args1 = append(args1, req.UserId)
+	args1 = append(args1, req.UserId)
+	execReq1 := SqlExecRequest{
+		SQL:  "insert into t_wholesaler(saler_uuid, saler_name, company, mobile, saler_status, create_time, create_user, update_time, update_user) values(?,?,?,?,1,now(),?,now(),?)",
+		Args: args1,
+	}
+	var execReqList = []SqlExecRequest{execReq1, execReq2}
+	err := m.d.dbCli.TransationExcute(execReqList)
+	if err == nil {
+		return uid.String(), passwd, nil
+	}
+	zap.L().Error(fmt.Sprintf("add wholesaler[%s,%s] error:%s", req.Data.WsCompany, req.Data.WsMobile, err.Error()))
+	return "", "", err
+}
 
 func (m *wholesaler_service) queryWholesaler(mobile string, company string) (*tWholeSaler, error) {
 	args := []interface{}{}

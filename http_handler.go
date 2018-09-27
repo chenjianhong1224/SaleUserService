@@ -139,9 +139,9 @@ func (m *httpHandler) wholeSalerRegister(body []byte, w http.ResponseWriter) {
 						if req.Data.WsMobile == "" {
 							resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商手机号不能为空", Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
 						} else {
-							wholesalerId, passwd, err := m.wholesalersv.addWholesaler(req)
+							uuid, passwd, err := m.wholesalersv.addWholesaler(req)
 							if err == nil {
-								resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: req.Cmd}, wholeSalerRegisterRespData{WsId: strconv.FormatInt(wholesalerId, 10), WsName: req.Data.WsName, WsCompany: req.Data.WsCompany, WsMobile: req.Data.WsMobile, WsIdentityCode: passwd}}
+								resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: req.Cmd}, wholeSalerRegisterRespData{WsId: uuid, WsName: req.Data.WsName, WsCompany: req.Data.WsCompany, WsMobile: req.Data.WsMobile, WsIdentityCode: passwd}}
 							} else {
 								resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商失败:" + err.Error(), Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
 							}
