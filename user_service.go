@@ -95,14 +95,22 @@ func (m *user_service) bindUser(openId string, user_uuid string) error {
 	return nil
 }
 
-func (m *user_service) addRetailer(openId string) error {
+func (m *user_service) addRetailer(openId string) (string, error) {
 	uid, _ := uuid.NewV4()
 	args2 := []interface{}{}
 	args2 = append(args2, uid.String())
 	args2 = append(args2, openId)
+	args2 = append(args2, uid.String())
+	args2 = append(args2, uid.String())
 	execReq2 := SqlExecRequest{
-		SQL:  "insert into t_user(user_uuid, user_name, passwd, agent_uuid, user_type, user_status, create_time, create_user, update_time, update_user) values(?,?,?,?,1,1,now(),?,now(),?)",
+		SQL:  "insert into t_user(user_uuid, open_id, user_type, user_status, create_time, create_user, update_time, update_user) values(?,1,1,now(),?,now(),?)",
 		Args: args2,
 	}
-	return nil
+	reply := m.d.dbCli.Query(execReq2)
+	execRep, _ := reply.(*SqlExecReply)
+	if execRep.Err != nil {
+		zap.L().Error(fmt.Sprintf("addRetailer user[%s] error:%s", openId, execRep.Err.Error()))
+		return "", execRep.Err
+	}
+	return uid.String(), nil
 }

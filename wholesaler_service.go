@@ -26,7 +26,7 @@ func (m *wholesaler_service) makepw(pwl int) string {
 	return res
 }
 
-func (m *wholesaler_service) addWholesaler(req wholeSalerRegisterReq) (string, string, error) {
+func (m *wholesaler_service) addWholesaler(req wholeSalerRegisterReq) (ud string, pd string, e error) {
 	passwd := m.makepw(8)
 	args2 := []interface{}{}
 	uid, _ := uuid.NewV4()

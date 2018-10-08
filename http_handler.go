@@ -97,6 +97,10 @@ func (m *httpHandler) process(w http.ResponseWriter, r *http.Request) {
 		}
 		if req.Cmd == 130 {
 			m.queryUser(body, w)
+		} else if req.Cmd == 132 {
+			m.userLogin(body, w)
+		} else if req.Cmd == 135 {
+			m.wholeSalerRegister(body, w)
 		} else {
 			var respHead ResponseHead
 			respHead = ResponseHead{RequestId: req.RequestId, ErrorCode: 9999, Cmd: req.Cmd, ErrorMsg: "cmd不合法"}
@@ -126,24 +130,24 @@ func (m *httpHandler) wholeSalerRegister(body []byte, w http.ResponseWriter) {
 	tUser, err := m.usersv.queryUser(req.OpenId, req.UserId)
 	if err == nil {
 		if tUser == nil {
-			resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "查不到对应的销售员userId=" + req.UserId + ",OpenId=" + req.OpenId, Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
+			resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "查不到对应的销售员userId=" + req.UserId + ",OpenId=" + req.OpenId, Cmd: 136}, wholeSalerRegisterRespData{}}
 		} else {
 			if tUser.User_type != 2 || tUser.User_status != 1 {
-				resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "该销售员不存在或不是合法状态", Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
+				resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "该销售员不存在或不是合法状态", Cmd: 136}, wholeSalerRegisterRespData{}}
 			} else {
 				tWholeSaler, err := m.wholesalersv.queryWholesaler(req.Data.WsMobile, req.Data.WsCompany)
 				if err == nil {
 					if tWholeSaler != nil {
-						resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "该批发商已经注册", Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
+						resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "该批发商已经注册", Cmd: 136}, wholeSalerRegisterRespData{}}
 					} else {
 						if req.Data.WsMobile == "" {
-							resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商手机号不能为空", Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
+							resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商手机号不能为空", Cmd: 136}, wholeSalerRegisterRespData{}}
 						} else {
 							uuid, passwd, err := m.wholesalersv.addWholesaler(req)
 							if err == nil {
-								resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: req.Cmd}, wholeSalerRegisterRespData{WsId: uuid, WsName: req.Data.WsName, WsCompany: req.Data.WsCompany, WsMobile: req.Data.WsMobile, WsIdentityCode: passwd}}
+								resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: 136}, wholeSalerRegisterRespData{WsId: uuid, WsName: req.Data.WsName, WsCompany: req.Data.WsCompany, WsMobile: req.Data.WsMobile, WsIdentityCode: passwd}}
 							} else {
-								resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商失败:" + err.Error(), Cmd: req.Cmd}, wholeSalerRegisterRespData{}}
+								resp = wholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商失败:" + err.Error(), Cmd: 136}, wholeSalerRegisterRespData{}}
 							}
 						}
 					}
@@ -180,7 +184,7 @@ func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 		return
 	} else if errMsg != "" {
 		var respHead ResponseHead
-		respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 9999, ErrorMsg: errMsg, Cmd: req.RequestHead.Cmd}
+		respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 9999, ErrorMsg: errMsg, Cmd: 133}
 		jsonData, err := json.Marshal(respHead)
 		if err != nil {
 			zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
@@ -196,18 +200,48 @@ func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 		tUser, err := m.usersv.queryUserByPasswd(req.Data.Passwd, req.Data.LoginName, req.UserType)
 		if err == nil {
 			if tUser == nil {
-				resp = userLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "用户" + req.Data.LoginName + "登录失败: 用户名或密码不正确", Cmd: req.Cmd}, userLoginRespData{}}
+				resp = userLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "用户" + req.Data.LoginName + "登录失败: 用户名或密码不正确", Cmd: 133}, userLoginRespData{}}
 			} else {
 				err = m.usersv.bindUser(openId, tUser.User_uuid)
-				// 处理登录
+				// TODO 处理登录
+				resp = userLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: 133}, userLoginRespData{OpenId: openId,
+					UserId:   tUser.User_uuid,
+					UserType: req.UserType,
+					UserName: tUser.User_name.String,
+					HeadIco:  ""}}
+
 			}
 		}
 	} else {
-
+		tUser, err := m.usersv.queryUserByOpenId(openId)
+		if err == nil {
+			var usrUUid string
+			if tUser == nil {
+				usrUUid, err = m.usersv.addRetailer(openId)
+				if err != nil {
+					zap.L().Error(fmt.Sprintf("login add addRetailer error %s", err.Error()))
+					m.ivalidResp(w)
+					return
+				}
+			} else {
+				// TODO 处理登录
+				usrUUid = tUser.User_uuid
+			}
+			resp = userLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: 133}, userLoginRespData{OpenId: openId,
+				UserId:   usrUUid,
+				UserType: req.UserType,
+				UserName: "",
+				HeadIco:  ""}}
+		}
 	}
-
-	zap.L().Error(fmt.Sprintf("login error %s", err.Error()))
-	m.ivalidResp(w)
+	jsonData, err := json.Marshal(resp)
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
+		m.ivalidResp(w)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(jsonData))
 	return
 }
 
@@ -282,12 +316,12 @@ func (m *httpHandler) queryUser(body []byte, w http.ResponseWriter) {
 	if err == nil {
 		if tUser != nil {
 			var respHead ResponseHead
-			respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 0, Cmd: req.RequestHead.Cmd}
+			respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 0, Cmd: 131}
 			var data QueryUserRespData
 			data = QueryUserRespData{OpenId: tUser.Open_id.String, UserId: tUser.User_uuid, UserType: tUser.User_type, UserName: tUser.User_name.String, HeadIco: tUser.Head_portrait.String}
 			resp = QueryUserResp{ResponseHead: respHead, Data: data}
 		} else {
-			resp = QueryUserResp{ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 1, Cmd: req.RequestHead.Cmd, ErrorMsg: "未查到对应的用户"}, QueryUserRespData{}}
+			resp = QueryUserResp{ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 1, Cmd: 131, ErrorMsg: "未查到对应的用户"}, QueryUserRespData{}}
 		}
 		jsonData, err := json.Marshal(resp)
 		if err != nil {
