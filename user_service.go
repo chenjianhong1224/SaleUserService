@@ -83,7 +83,7 @@ func (m *user_service) bindUser(openId string, user_uuid string) error {
 	args1 = append(args1, user_uuid)
 	args1 = append(args1, user_uuid)
 	execReq1 := SqlExecRequest{
-		SQL:  "update t_user set open_id = ?, update_user = ? , update_time = now  where user_uuid = ?",
+		SQL:  "update t_user set open_id = ?, update_user = ? , update_time = now()  where user_uuid = ?",
 		Args: args1,
 	}
 	reply := m.d.dbCli.Query(execReq1)
