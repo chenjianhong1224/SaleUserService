@@ -65,6 +65,15 @@ type userLoginRespData struct {
 	HeadIco  string `json:"headIco"`
 }
 
+type userLogoutReq struct {
+	RequestHead
+	wsId string `json:"wsId"`
+}
+
+type userLogoutResp struct {
+	ResponseHead
+}
+
 type QueryUserReqData struct {
 	SpId   string `json:"spId"`
 	WxCode string `json:"wxCode"`

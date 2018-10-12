@@ -95,12 +95,14 @@ func (m *httpHandler) process(w http.ResponseWriter, r *http.Request) {
 			m.ivalidResp(w)
 			return
 		}
-		if req.Cmd == 130 {
+		if req.Cmd == 130 { //用户信息查询接口
 			m.queryUser(body, w)
-		} else if req.Cmd == 132 {
+		} else if req.Cmd == 132 { //用户登录接口
 			m.userLogin(body, w)
-		} else if req.Cmd == 135 {
-			m.wholeSalerRegister(body, w)
+			//		} else if req.Cmd == 135 {
+			//			m.wholeSalerRegister(body, w)
+		} else if req.Cmd == 134 {
+			m.logout(body, w)
 		} else {
 			var respHead ResponseHead
 			respHead = ResponseHead{RequestId: req.RequestId, ErrorCode: 9999, Cmd: req.Cmd, ErrorMsg: "cmd不合法"}
@@ -203,7 +205,9 @@ func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 				resp = userLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "用户" + req.Data.LoginName + "登录失败: 用户名或密码不正确", Cmd: 133}, userLoginRespData{}}
 			} else {
 				err = m.usersv.bindUser(openId, tUser.User_uuid)
-				// TODO 处理登录
+				if err == nil {
+					err = m.usersv.login(tUser.User_uuid)
+				}
 				resp = userLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: 133}, userLoginRespData{OpenId: openId,
 					UserId:   tUser.User_uuid,
 					UserType: req.UserType,
@@ -224,15 +228,20 @@ func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 					return
 				}
 			} else {
-				// TODO 处理登录
 				usrUUid = tUser.User_uuid
 			}
+			err = m.usersv.login(usrUUid)
 			resp = userLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: 133}, userLoginRespData{OpenId: openId,
 				UserId:   usrUUid,
 				UserType: req.UserType,
 				UserName: "",
 				HeadIco:  ""}}
 		}
+	}
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("doUserLogin error %s", err.Error()))
+		m.ivalidResp(w)
+		return
 	}
 	jsonData, err := json.Marshal(resp)
 	if err != nil {
@@ -243,6 +252,16 @@ func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(jsonData))
 	return
+}
+
+func (m *httpHandler) userLogout(body []byte, w http.ResponseWriter) {
+	var req userLogoutReq
+	err := json.Unmarshal(body, &req)
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
+		m.ivalidResp(w)
+		return
+	}
 }
 
 func (m *httpHandler) getWxUserInfo(spId string, wxCode string) (errMsg string, openId string, sessionKey string, err error) {

@@ -95,6 +95,42 @@ func (m *user_service) bindUser(openId string, user_uuid string) error {
 	return nil
 }
 
+func (m *user_service) login(user_uuid string) error {
+	args1 := []interface{}{}
+	args1 = append(args1, 2)
+	args1 = append(args1, user_uuid)
+	args1 = append(args1, user_uuid)
+	execReq1 := SqlExecRequest{
+		SQL:  "update t_user set user_status = ?, update_user = ? , update_time = now()  where user_uuid = ?",
+		Args: args1,
+	}
+	reply := m.d.dbCli.Query(execReq1)
+	execRep, _ := reply.(*SqlExecReply)
+	if execRep.Err != nil {
+		zap.L().Error(fmt.Sprintf("login user[%s] error:%s", user_uuid, execRep.Err.Error()))
+		return execRep.Err
+	}
+	return nil
+}
+
+func (m *user_service) logout(user_uuid string) error {
+	args1 := []interface{}{}
+	args1 = append(args1, 3)
+	args1 = append(args1, user_uuid)
+	args1 = append(args1, user_uuid)
+	execReq1 := SqlExecRequest{
+		SQL:  "update t_user set user_status = ?, update_user = ? , update_time = now()  where user_uuid = ?",
+		Args: args1,
+	}
+	reply := m.d.dbCli.Query(execReq1)
+	execRep, _ := reply.(*SqlExecReply)
+	if execRep.Err != nil {
+		zap.L().Error(fmt.Sprintf("logout user[%s] error:%s", user_uuid, execRep.Err.Error()))
+		return execRep.Err
+	}
+	return nil
+}
+
 func (m *user_service) addRetailer(openId string) (string, error) {
 	uid, _ := uuid.NewV4()
 	args2 := []interface{}{}
