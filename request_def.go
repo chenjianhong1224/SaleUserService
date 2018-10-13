@@ -4,7 +4,7 @@ type RequestHead struct {
 	RequestId string `json:"requestId"`
 	UserType  int32  `json:"userType"`
 	Cmd       int32  `json:"cmd"`
-	WsId      string `json:"wsId"`
+	WsId      string `json:"wsId"` //uuid
 }
 
 type ResponseHead struct {
@@ -14,20 +14,20 @@ type ResponseHead struct {
 	Cmd       int32  `json:"cmd"`
 }
 
-type wholeSalerRegisterReqData struct {
+type WholeSalerRegisterReqData struct {
 	WsName    string `json:"wsName"`
 	WsCompany string `json:"wsCompany"`
 	WsMobile  string `json:"wsMobile"`
 }
 
-type wholeSalerRegisterReq struct {
+type WholeSalerRegisterReq struct {
 	RequestHead
 	OpenId string                    `json:"openId"`
 	UserId string                    `json:"userId"`
-	Data   wholeSalerRegisterReqData `json:"data"`
+	Data   WholeSalerRegisterReqData `json:"data"`
 }
 
-type wholeSalerRegisterRespData struct {
+type WholeSalerRegisterRespData struct {
 	WsId           string `json:"wsId"`
 	WsName         string `json:"wsName"`
 	WsCompany      string `json:"wsCompany"`
@@ -35,29 +35,29 @@ type wholeSalerRegisterRespData struct {
 	WsIdentityCode string `json:"wsIdentityCode"`
 }
 
-type wholeSalerRegisterResp struct {
+type WholeSalerRegisterResp struct {
 	ResponseHead
-	Data wholeSalerRegisterRespData `json:"data"`
+	Data WholeSalerRegisterRespData `json:"data"`
 }
 
-type userLoginReq struct {
+type UserLoginReq struct {
 	RequestHead
-	Data userLoginReqData `json:"data"`
+	Data UserLoginReqData `json:"data"`
 }
 
-type userLoginReqData struct {
+type UserLoginReqData struct {
 	Passwd    string `json:"passwd"`
 	SpId      string `json:"spId"`
 	WxCode    string `json:"wxCode"`
 	LoginName string `json:"loginName"`
 }
 
-type userLoginResp struct {
+type UserLoginResp struct {
 	ResponseHead
-	Data userLoginRespData `json:"data"`
+	Data UserLoginRespData `json:"data"`
 }
 
-type userLoginRespData struct {
+type UserLoginRespData struct {
 	OpenId   string `json:"openId"`
 	UserId   string `json:"userId"`
 	UserType int32  `json:"userType"`
@@ -65,13 +65,34 @@ type userLoginRespData struct {
 	HeadIco  string `json:"headIco"`
 }
 
-type userLogoutReq struct {
-	RequestHead
-	wsId string `json:"wsId"`
+type UserLogoutReq struct {
+	RequestId string `json:"requestId"`
+	UserType  int32  `json:"userType"`
+	Cmd       int32  `json:"cmd"`
+	UserId    string `json:"userId"`
+	wsId      string `json:"wsId"`
 }
 
-type userLogoutResp struct {
+type UserLogoutResp struct {
 	ResponseHead
+}
+
+type ChangePasswdReq struct {
+	RequestId string              `json:"requestId"`
+	UserType  int32               `json:"userType"`
+	Cmd       int32               `json:"cmd"`
+	UserId    string              `json:"userId"`
+	wsId      string              `json:"wsId"`
+	data      ChangePasswdReqData `json:"data"`
+}
+
+type ChangePasswdReqData struct {
+	OldPasswd string `json:"oldPasswd"`
+	Passwd    string `json:"passwd"`
+}
+
+type ChangePasswdResp struct {
+	ResponseHead ResponseHead
 }
 
 type QueryUserReqData struct {

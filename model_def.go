@@ -6,7 +6,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-type tWholeSaler struct {
+type TWholeSaler struct {
 	Saler_id     int64
 	Saler_uuid   string
 	Saler_name   sql.NullString

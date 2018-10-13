@@ -26,7 +26,7 @@ func (m *wholesaler_service) makepw(pwl int) string {
 	return res
 }
 
-func (m *wholesaler_service) addWholesaler(req wholeSalerRegisterReq) (ud string, pd string, e error) {
+func (m *wholesaler_service) addWholesaler(req WholeSalerRegisterReq) (ud string, pd string, e error) {
 	passwd := m.makepw(8)
 	args2 := []interface{}{}
 	uid, _ := uuid.NewV4()
@@ -62,11 +62,11 @@ func (m *wholesaler_service) addWholesaler(req wholeSalerRegisterReq) (ud string
 	return "", "", err
 }
 
-func (m *wholesaler_service) queryWholesaler(mobile string, company string) (*tWholeSaler, error) {
+func (m *wholesaler_service) queryWholesaler(mobile string, company string) (*TWholeSaler, error) {
 	args := []interface{}{}
 	args = append(args, company)
 	args = append(args, mobile)
-	tmp := tWholeSaler{}
+	tmp := TWholeSaler{}
 	queryReq := &SqlQueryRequest{
 		SQL:         "select saler_id, saler_uuid, saler_name, company, mobile , saler_status , create_time, create_user, update_time, update_user, remark from t_wholesaler where company = ? and mobile = ?",
 		Args:        args,
@@ -80,5 +80,5 @@ func (m *wholesaler_service) queryWholesaler(mobile string, company string) (*tW
 	if len(queryRep.Rows) == 0 {
 		return nil, nil
 	}
-	return queryRep.Rows[0].(*tWholeSaler), nil
+	return queryRep.Rows[0].(*TWholeSaler), nil
 }
