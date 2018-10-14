@@ -131,7 +131,7 @@ func (m *user_service) bindUser(openId string, user_uuid string) error {
 	args1 = append(args1, openId)
 	args1 = append(args1, user_uuid)
 	args1 = append(args1, user_uuid)
-	execReq1 := SqlExecRequest{
+	execReq1 := &SqlExecRequest{
 		SQL:  "update t_user set open_id = ?, update_user = ? , update_time = now()  where user_uuid = ?",
 		Args: args1,
 	}
@@ -149,7 +149,7 @@ func (m *user_service) login(user_uuid string) error {
 	args1 = append(args1, 2)
 	args1 = append(args1, user_uuid)
 	args1 = append(args1, user_uuid)
-	execReq1 := SqlExecRequest{
+	execReq1 := &SqlExecRequest{
 		SQL:  "update t_user set user_status = ?, login_time = now()  where user_uuid = ?",
 		Args: args1,
 	}
@@ -166,7 +166,7 @@ func (m *user_service) logout(user_uuid string) error {
 	args1 := []interface{}{}
 	args1 = append(args1, 3)
 	args1 = append(args1, user_uuid)
-	execReq1 := SqlExecRequest{
+	execReq1 := &SqlExecRequest{
 		SQL:  "update t_user set user_status = ?, logout_time = now()  where user_uuid = ?",
 		Args: args1,
 	}
@@ -185,7 +185,7 @@ func (m *user_service) changePasswd(passwd string, user_uuid string) error {
 	has := md5.Sum(data)
 	args = append(args, fmt.Sprintf("%x", has))
 	args = append(args, user_uuid)
-	execReq := SqlExecRequest{
+	execReq := &SqlExecRequest{
 		SQL:  "update t_user set passwd = ?, update_time=now(), update_user=? where user_uuid = ?",
 		Args: args,
 	}
@@ -205,7 +205,7 @@ func (m *user_service) addRetailer(openId string) (string, error) {
 	args2 = append(args2, openId)
 	args2 = append(args2, uid.String())
 	args2 = append(args2, uid.String())
-	execReq2 := SqlExecRequest{
+	execReq2 := &SqlExecRequest{
 		SQL:  "insert into t_user(user_uuid, open_id, user_type, user_status, create_time, create_user, update_time, update_user) values(?,?,1,1,now(),?,now(),?)",
 		Args: args2,
 	}

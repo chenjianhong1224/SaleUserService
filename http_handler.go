@@ -262,6 +262,7 @@ func (m *httpHandler) userLogout(body []byte, w http.ResponseWriter) {
 		m.ivalidResp(w)
 		return
 	}
+	zap.L().Info(fmt.Sprintf("request %+v\n", req))
 	err = m.usersv.logout(req.UserId)
 	var resp UserLogoutResp
 	if err != nil {
@@ -363,6 +364,7 @@ func (m *httpHandler) queryUser(body []byte, w http.ResponseWriter) {
 		m.ivalidResp(w)
 		return
 	}
+	zap.L().Info(fmt.Sprintf("request %+v\n", req))
 	errMsg, openid, _, err := m.getWxUserInfo(req.Data.SpId, req.Data.WxCode)
 	if err != nil {
 		zap.L().Error(fmt.Sprintf("queryUser error %s", err.Error()))
@@ -370,7 +372,7 @@ func (m *httpHandler) queryUser(body []byte, w http.ResponseWriter) {
 		return
 	} else if errMsg != "" {
 		var respHead ResponseHead
-		respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 9999, ErrorMsg: errMsg, Cmd: req.RequestHead.Cmd}
+		respHead = ResponseHead{RequestId: req.RequestHead.RequestId, ErrorCode: 9999, ErrorMsg: errMsg, Cmd: 131}
 		jsonData, err := json.Marshal(respHead)
 		if err != nil {
 			zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
