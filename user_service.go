@@ -198,22 +198,33 @@ func (m *user_service) changePasswd(passwd string, user_uuid string) error {
 	return nil
 }
 
-func (m *user_service) addRetailer(openId string) (string, error) {
+func (m *user_service) addRetailer(openId string, wholesaler_uuid string, salesman_uuid string) (string, error) {
 	uid, _ := uuid.NewV4()
 	args2 := []interface{}{}
 	args2 = append(args2, uid.String())
 	args2 = append(args2, openId)
 	args2 = append(args2, uid.String())
 	args2 = append(args2, uid.String())
-	execReq2 := &SqlExecRequest{
+	execReq2 := SqlExecRequest{
 		SQL:  "insert into t_user(user_uuid, open_id, user_type, user_status, create_time, create_user, update_time, update_user) values(?,?,1,1,now(),?,now(),?)",
 		Args: args2,
 	}
-	reply := m.d.dbCli.Query(execReq2)
-	execRep, _ := reply.(*SqlExecReply)
-	if execRep.Err != nil {
-		zap.L().Error(fmt.Sprintf("addRetailer user[%s] error:%s", openId, execRep.Err.Error()))
-		return "", execRep.Err
+	args1 := []interface{}{}
+	args1 = append(args1, uid.String())
+	args1 = append(args1, wholesaler_uuid)
+	args1 = append(args1, salesman_uuid)
+	args1 = append(args1, openId)
+	args1 = append(args1, uid.String())
+	args1 = append(args1, uid.String())
+	execReq1 := SqlExecRequest{
+		SQL:  "insert into T_WholeSaler_Member(member_uuid, saler_uuid, salesman_uuid, member_name, mobile, member_status, open_id, other_from, member_bonus, create_time, create_user, update_time, update_user, remark) values(?,?,?,?,NULL,NULL,?,NULL,NULL,now(),?,now(),?,NULL)",
+		Args: args1,
 	}
-	return uid.String(), nil
+	var execReqList = []SqlExecRequest{execReq1, execReq2}
+	err := m.d.dbCli.TransationExcute(execReqList)
+	if err == nil {
+		return uid.String(), nil
+	}
+	zap.L().Error(fmt.Sprintf("add retailer error:%s", err.Error()))
+	return "", err
 }

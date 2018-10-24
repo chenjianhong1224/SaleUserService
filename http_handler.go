@@ -119,58 +119,6 @@ func (m *httpHandler) process(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (m *httpHandler) wholeSalerRegister(body []byte, w http.ResponseWriter) {
-
-	var req WholeSalerRegisterReq
-	err := json.Unmarshal(body, &req)
-	if err != nil {
-		zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
-		m.ivalidResp(w)
-		return
-	}
-	var resp WholeSalerRegisterResp
-	tUser, err := m.usersv.queryUser(req.OpenId, req.UserId)
-	if err == nil {
-		if tUser == nil {
-			resp = WholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "查不到对应的销售员userId=" + req.UserId + ",OpenId=" + req.OpenId, Cmd: 136}, WholeSalerRegisterRespData{}}
-		} else {
-			if tUser.User_type != 2 || tUser.User_status != 1 {
-				resp = WholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "该销售员不存在或不是合法状态", Cmd: 136}, WholeSalerRegisterRespData{}}
-			} else {
-				tWholeSaler, err := m.wholesalersv.queryWholesaler(req.Data.WsMobile, req.Data.WsCompany)
-				if err == nil {
-					if tWholeSaler != nil {
-						resp = WholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "该批发商已经注册", Cmd: 136}, WholeSalerRegisterRespData{}}
-					} else {
-						if req.Data.WsMobile == "" {
-							resp = WholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商手机号不能为空", Cmd: 136}, WholeSalerRegisterRespData{}}
-						} else {
-							uuid, passwd, err := m.wholesalersv.addWholesaler(req)
-							if err == nil {
-								resp = WholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: 136}, WholeSalerRegisterRespData{WsId: uuid, WsName: req.Data.WsName, WsCompany: req.Data.WsCompany, WsMobile: req.Data.WsMobile, WsIdentityCode: passwd}}
-							} else {
-								resp = WholeSalerRegisterResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 1, ErrorMsg: "新增批发商失败:" + err.Error(), Cmd: 136}, WholeSalerRegisterRespData{}}
-							}
-						}
-					}
-				}
-			}
-		}
-		data, err := json.Marshal(resp)
-		if err != nil {
-			zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
-			m.ivalidResp(w)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(data))
-		return
-	}
-	zap.L().Error(fmt.Sprintf("get saler_user error %s", err.Error()))
-	m.ivalidResp(w)
-	return
-}
-
 func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 	var req UserLoginReq
 	err := json.Unmarshal(body, &req)
@@ -221,7 +169,7 @@ func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 		if err == nil {
 			var usrUUid string
 			if tUser == nil {
-				usrUUid, err = m.usersv.addRetailer(openId)
+				usrUUid, err = m.usersv.addRetailer(openId, req.WsId, "")
 				if err != nil {
 					zap.L().Error(fmt.Sprintf("login add addRetailer error %s", err.Error()))
 					m.ivalidResp(w)
