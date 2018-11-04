@@ -276,7 +276,9 @@ func (m *httpHandler) getWxUserInfo(spId string, wxCode string) (errMsg string, 
 	}
 	appid = tWxPluginProgram.Appid
 	secret = tWxPluginProgram.Appsecrete
-	resp, err := http.Get("https://api.weixin.qq.com/sns/jscode2session?appid=" + appid + "&secret=" + secret + "&js_code=" + wxCode + "&grant_type=authorization_code")
+	url := "https://api.weixin.qq.com/sns/jscode2session?appid=" + appid + "&secret=" + secret + "&js_code=" + wxCode + "&grant_type=authorization_code"
+	zap.L().Debug("tencent authorization url = " + url)
+	resp, err := http.Get(url)
 	if err != nil {
 		zap.L().Error(fmt.Sprintf("get wx session_key error %s", err.Error()))
 		return "", "", "", err
@@ -288,18 +290,12 @@ func (m *httpHandler) getWxUserInfo(spId string, wxCode string) (errMsg string, 
 	}
 	var dat map[string]interface{}
 	if err := json.Unmarshal([]byte(body), &dat); err == nil {
+		zap.L().Debug("tencent return = " + string(body))
 		openid := dat["openid"]
 		session_key := dat["session_key"]
-		errcode := dat["errcode"]
-		errMsg := dat["errMsg"]
 		zap.L().Debug(fmt.Sprintf("openid:%s", openid.(string)))
 		zap.L().Debug(fmt.Sprintf("session_key:%s", session_key.(string)))
-		zap.L().Debug(fmt.Sprintf("errcode:%s", errcode.(string)))
-		zap.L().Debug(fmt.Sprintf("errMsg:%s", errMsg.(string)))
-		if errcode.(int) == 0 {
-			return "", openid.(string), session_key.(string), nil
-		}
-		return "[" + wxCode + "] code2Session失败[" + strconv.Itoa(errcode.(int)) + "]:" + errMsg.(string), "", "", nil
+		return "", openid.(string), session_key.(string), err
 	}
 	return "", "", "", err
 }

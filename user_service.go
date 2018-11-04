@@ -148,7 +148,6 @@ func (m *user_service) login(user_uuid string) error {
 	args1 := []interface{}{}
 	args1 = append(args1, 2)
 	args1 = append(args1, user_uuid)
-	args1 = append(args1, user_uuid)
 	execReq1 := &SqlExecRequest{
 		SQL:  "update t_user set user_status = ?, login_time = now()  where user_uuid = ?",
 		Args: args1,
