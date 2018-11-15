@@ -66,7 +66,7 @@ func (m *user_service) queryUserByPasswd(passwd string, login_name string, user_
 	args = append(args, user_type)
 	tmp := tUser{}
 	queryReq := &SqlQueryRequest{
-		SQL:         "select User_id, User_uuid, User_name, Passwd, Open_id, Other_from, Nickname, Head_portrait, Agent_uuid, User_type, User_status, User_token, Expiry_time, Create_time, Create_user, Update_time, Update_user, Remark from t_user where Passwd = ? and User_name = ? and User_type = ? and User_status = 1",
+		SQL:         "select User_id, User_uuid, User_name, Passwd, Open_id, Other_from, Nickname, Head_portrait, Agent_uuid, User_type, User_status, User_token, Expiry_time, Create_time, Create_user, Update_time, Update_user, Remark from t_user where Passwd = ? and User_name = ? and User_type = ? and User_status <> 0",
 		Args:        args,
 		RowTemplate: tmp}
 	reply := m.d.dbCli.Query(queryReq)
@@ -216,7 +216,7 @@ func (m *user_service) addRetailer(openId string, wholesaler_uuid string, salesm
 	args1 = append(args1, uid.String())
 	args1 = append(args1, uid.String())
 	execReq1 := SqlExecRequest{
-		SQL:  "insert into T_WholeSaler_Member(member_uuid, saler_uuid, salesman_uuid, member_name, mobile, member_status, open_id, other_from, member_bonus, create_time, create_user, update_time, update_user, remark) values(?,?,?,?,NULL,NULL,?,NULL,NULL,now(),?,now(),?,NULL)",
+		SQL:  "insert into t_wholesaler_member(member_uuid, saler_uuid, salesman_uuid, member_name, mobile, member_status, open_id, other_from, member_bonus, create_time, create_user, update_time, update_user, remark) values(?,?,?,NULL,NULL,1,?,NULL,NULL,now(),?,now(),?,NULL)",
 		Args: args1,
 	}
 	var execReqList = []SqlExecRequest{execReq1, execReq2}
