@@ -169,6 +169,12 @@ func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 		if err == nil {
 			var usrUUid string
 			if tUser == nil {
+				tUser = m.usersv.queryUserByUUid(req.WsId)
+				if tUser == nil {
+					zap.L().Error(fmt.Sprintf("login add addRetailer error no wsId %s", req.WsId))
+					m.ivalidResp(w)
+					return
+				}
 				usrUUid, err = m.usersv.addRetailer(openId, req.WsId, "")
 				if err != nil {
 					zap.L().Error(fmt.Sprintf("login add addRetailer error %s", err.Error()))
