@@ -57,6 +57,26 @@ func (m *user_service) queryUserByUUidPasswd(passwd string, user_uuid string, us
 	return queryRep.Rows[0].(*tUser), nil
 }
 
+func (m *user_service) queryUserByUUid(user_uuid string) (*tUser, error) {
+	args := []interface{}{}
+	args = append(args, user_uuid)
+	tmp := tUser{}
+	queryReq := &SqlQueryRequest{
+		SQL:         "select User_id, User_uuid, User_name, Passwd, Open_id, Other_from, Nickname, Head_portrait, Agent_uuid, User_type, User_status, User_token, Expiry_time, Create_time, Create_user, Update_time, Update_user, Remark from t_user where User_uuid = ? and User_status = 1",
+		Args:        args,
+		RowTemplate: tmp}
+	reply := m.d.dbCli.Query(queryReq)
+	queryRep, _ := reply.(*SqlQueryReply)
+	if queryRep.Err != nil {
+		zap.L().Error(fmt.Sprintf("query user[%s] error:%s", user_uuid, queryRep.Err.Error()))
+		return nil, queryRep.Err
+	}
+	if len(queryRep.Rows) == 0 {
+		return nil, nil
+	}
+	return queryRep.Rows[0].(*tUser), nil
+}
+
 func (m *user_service) queryUserByPasswd(passwd string, login_name string, user_type int32) (*tUser, error) {
 	args := []interface{}{}
 	data := []byte(passwd)
@@ -201,11 +221,12 @@ func (m *user_service) addRetailer(openId string, wholesaler_uuid string, salesm
 	uid, _ := uuid.NewV4()
 	args2 := []interface{}{}
 	args2 = append(args2, uid.String())
+	args2 = append(args2, uid.String())
 	args2 = append(args2, openId)
 	args2 = append(args2, uid.String())
 	args2 = append(args2, uid.String())
 	execReq2 := SqlExecRequest{
-		SQL:  "insert into t_user(user_uuid, open_id, user_type, user_status, create_time, create_user, update_time, update_user) values(?,?,1,1,now(),?,now(),?)",
+		SQL:  "insert into t_user(user_uuid, agent_uuid, open_id, user_type, user_status, create_time, create_user, update_time, update_user) values(?,?,?,1,1,now(),?,now(),?)",
 		Args: args2,
 	}
 	args1 := []interface{}{}
