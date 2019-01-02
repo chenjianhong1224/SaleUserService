@@ -112,6 +112,7 @@ func (m *httpHandler) process(w http.ResponseWriter, r *http.Request) {
 				m.ivalidResp(w)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json;charset=utf-8")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(jsonData))
 			return
@@ -146,6 +147,28 @@ func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 		return
 	}
 	var resp UserLoginResp
+	tUser, err := m.usersv.queryUserByOpenIdType(openId, req.UserType)
+	if err == nil {
+		if tUser != nil {
+			if tUser.User_status == 2 {
+				resp = UserLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: 133}, UserLoginRespData{OpenId: openId,
+					UserId:   tUser.User_uuid,
+					UserType: req.UserType,
+					UserName: tUser.User_name.String,
+					HeadIco:  ""}}
+				jsonData, err := json.Marshal(resp)
+				if err != nil {
+					zap.L().Error(fmt.Sprintf("json transfer error %s", err.Error()))
+					m.ivalidResp(w)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(jsonData))
+				return
+			}
+		}
+	}
+
 	if req.UserType != 1 { //零售商登录不需要密码，其他都需要
 		tUser, err := m.usersv.queryUserByPasswd(req.Data.Passwd, req.Data.LoginName, req.UserType)
 		if err == nil {
@@ -165,26 +188,23 @@ func (m *httpHandler) userLogin(body []byte, w http.ResponseWriter) {
 			}
 		}
 	} else {
-		tUser, err := m.usersv.queryUserByOpenIdType(openId, req.UserType)
-		if err == nil {
-			var usrUUid string
-			if tUser == nil {
-				usrUUid, err = m.usersv.addRetailer(openId, req.WsId, "")
-				if err != nil {
-					zap.L().Error(fmt.Sprintf("login add addRetailer error %s", err.Error()))
-					m.ivalidResp(w)
-					return
-				}
-			} else {
-				usrUUid = tUser.User_uuid
+		var usrUUid string
+		if tUser == nil {
+			usrUUid, err = m.usersv.addRetailer(openId, req.WsId, "")
+			if err != nil {
+				zap.L().Error(fmt.Sprintf("login add addRetailer error %s", err.Error()))
+				m.ivalidResp(w)
+				return
 			}
-			err = m.usersv.login(usrUUid)
-			resp = UserLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: 133}, UserLoginRespData{OpenId: openId,
-				UserId:   usrUUid,
-				UserType: req.UserType,
-				UserName: "",
-				HeadIco:  ""}}
+		} else {
+			usrUUid = tUser.User_uuid
 		}
+		err = m.usersv.login(usrUUid)
+		resp = UserLoginResp{ResponseHead{RequestId: req.RequestId, ErrorCode: 0, Cmd: 133}, UserLoginRespData{OpenId: openId,
+			UserId:   usrUUid,
+			UserType: req.UserType,
+			UserName: "",
+			HeadIco:  ""}}
 	}
 	if err != nil {
 		zap.L().Error(fmt.Sprintf("doUserLogin error %s", err.Error()))
